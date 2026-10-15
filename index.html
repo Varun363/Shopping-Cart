@@ -92,7 +92,7 @@ const $ = id => document.getElementById(id);
 const cut = (t, n) => t.length > n ? t.slice(0, n - 1) + "\u2026" : t;
 
 // 👇 PUT YOUR ACTUAL RENDER APP URL HERE (e.g., https://onrender.com)
-const BACKEND_URL = "https://Shopping-Cart.onrender.com";
+const BACKEND_URL = "https://shopping-cart-pmmg.onrender.com";  // no slash at the end
 
 $("inputs").innerHTML = names.map((n, i) => `<div><label for="d${i}">D${i} \u2013 ${n}</label><input type="text" id="d${i}" value="${defaults[i]}" maxlength="40"></div>`).join("");
 
@@ -135,7 +135,7 @@ function log(msg) {
 }
 const esc = s => s.replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
 
-
+// Function to handle backend connection status checks
 function testConnection() {
   fetch(`${BACKEND_URL}/api/data`)
       .then(response => {
@@ -180,12 +180,23 @@ function travel(i) {
 async function sendOne(i) {
  if (busy) return; busy = true;
  resetOutputs();
- const val = $("d" + i).value.trim() || "No data";
- log(`Sending D${i} data: "<b>${esc(val)}</b>"...`);
- await travel(i);
- $("ov" + i).textContent = cut(val, 20);
- log(`Data safely arrived at Y${i} (${sys[i]}).`);
- testConnection(); // Trigger the backend test when data finishes transmission
+ const sensors = names.map((_, k) => $("d" + k).value.trim() || "No data");
+ log(`Sending D${i} to backend...`);
+ try {
+  const resp = await fetch(`${BACKEND_URL}/api/transmit`, {
+   method: "POST",
+   headers: { "Content-Type": "application/json" },
+   body: JSON.stringify({ sel: i, sensors: sensors })
+  });
+  if (!resp.ok) throw new Error("HTTP " + resp.status);
+  const r = await resp.json();
+  log(`MUX selected <b>D${r.sel}</b> (${esc(r.sensor)}): "<b>${esc(r.line)}</b>"`);
+  await travel(i);
+  $("ov" + i).textContent = cut(r.line, 20);
+  log(`DEMUX routed to <b>Y${r.sel}</b> (${esc(r.dest)}).`);
+ } catch (e) {
+  log(`<b>Error:</b> could not reach backend (${esc(String(e.message))}). Check BACKEND_URL.`);
+ }
  busy = false;
 }
 
