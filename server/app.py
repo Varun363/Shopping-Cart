@@ -1,8 +1,8 @@
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify
+from flask_cors import CORS
 
-
-app = Flask(__name__, static_folder=None)
-
+app = Flask(__name__)
+CORS(app)  # lets the page hosted on Vercel call this API
 
 
 class SmartCart:
@@ -31,14 +31,19 @@ class SupermarketServer:
 
 @app.get("/")
 def index():
-    return send_from_directory(".", "index.html")
+    return "Smart Cart backend is running"
+
+
+@app.get("/api/data")          # the page calls this to test the connection
+def data():
+    return jsonify(message="Hello from Flask backend!")
 
 
 @app.post("/api/transmit")
 def transmit():
-    data = request.get_json(silent=True) or {}
-    sel = data.get("sel")
-    sensors = data.get("sensors")
+    body = request.get_json(silent=True) or {}
+    sel = body.get("sel")
+    sensors = body.get("sensors")
 
     if (not isinstance(sel, int) or not 0 <= sel <= 3
             or not isinstance(sensors, list) or len(sensors) != 4):
@@ -50,16 +55,13 @@ def transmit():
     cart = SmartCart(sensors)
     server = SupermarketServer()
 
-    mux_sel, line = cart.multiplex(s1, s0)            # MUX
+    mux_sel, line = cart.multiplex(s1, s0)                     # MUX
     dmx_sel, dest, outputs = server.demultiplex(line, s1, s0)  # DEMUX
 
-    app.logger.info("S1S0=%d%d  D%d '%s' -> Y%d %s",
-                    s1, s0, mux_sel, line, dmx_sel, dest)
     return jsonify(sel=mux_sel, s1=s1, s0=s0, line=line,
                    sensor=SmartCart.sensor_names[mux_sel],
                    dest=dest, outputs=outputs)
 
 
-if __name__ == "__main__":
-    print("Open http://localhost:5000")
+if __name__ == "__main__":   # only used on your own computer, Render ignores this
     app.run(host="127.0.0.1", port=5000, debug=True)
