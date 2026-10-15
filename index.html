@@ -92,7 +92,7 @@ const $ = id => document.getElementById(id);
 const cut = (t, n) => t.length > n ? t.slice(0, n - 1) + "\u2026" : t;
 
 // 👇 PUT YOUR ACTUAL RENDER APP URL HERE (e.g., https://onrender.com)
-const BACKEND_URL = "https://onrender.com";
+const BACKEND_URL = "https://Shopping-Cart.onrender.com";
 
 $("inputs").innerHTML = names.map((n, i) => `<div><label for="d${i}">D${i} \u2013 ${n}</label><input type="text" id="d${i}" value="${defaults[i]}" maxlength="40"></div>`).join("");
 
