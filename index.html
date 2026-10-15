@@ -134,11 +134,23 @@ function travel(i){
  return new Promise(res=>{
   const y=py[i];
   const d=`M170 ${y} H300 L400 200 H560 L660 ${y} H790`;
+  const BACKEND_URL = "https://onrender.com";
   const live=$("live"),pkt=$("pkt");
   live.setAttribute("d",d);live.classList.add("on");
   const len=live.getTotalLength();
   const dur=matchMedia("(prefers-reduced-motion:reduce)").matches?50:1500;
   const t0=performance.now();
+
+  function testConnection() {
+    fetch(`${BACKEND_URL}/api/data`) // Pointing to the live Flask route
+        .then(response => response.json())
+        .then(data => {
+            console.log("Connected successfully!", data);
+            document.getElementById("output").innerText = data.message;
+        })
+        .catch(error => console.error("Error connecting to backend:", error));
+}
+
   pkt.setAttribute("opacity","1");
   (function step(now){
    const k=Math.min((now-t0)/dur,1);
