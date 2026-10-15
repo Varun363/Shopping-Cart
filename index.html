@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Smart Cart MUX / DEMUX Simulator</title>
+<style>
+:root{--bg:#e9efed;--panel:#fff;--ink:#12303a;--mute:#5d7580;--line:#b7c6c9;--accent:#0f766e;--sig:#e08a00;--idle:#dde6e6;--onacc:#fff;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f1c20;--panel:#172a30;--ink:#e3eeee;--mute:#8fa8ae;--line:#34505a;--accent:#2fb5a8;--sig:#ffb02e;--idle:#21383f;--onacc:#06201e}}
+:root[data-theme="dark"]{--bg:#0f1c20;--panel:#172a30;--ink:#e3eeee;--mute:#8fa8ae;--line:#34505a;--accent:#2fb5a8;--sig:#ffb02e;--idle:#21383f;--onacc:#06201e}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;line-height:1.45;padding:20px 16px 32px}
+main{max-width:1000px;margin:0 auto}
+h1{font-size:1.6rem;margin:0 0 4px;letter-spacing:-.01em}
+p.sub{margin:0 0 18px;color:var(--mute);max-width:64ch}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:14px}
+.inputs{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+label{display:block;font-size:.85rem;color:var(--mute);margin-bottom:3px}
+input[type=text]{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);font:inherit}
+input:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.diagram{overflow-x:auto;padding:8px}
+svg{display:block;width:100%;min-width:760px;height:auto}
+.wire{stroke:var(--line);stroke-width:3;fill:none}
+.live{stroke:var(--sig);stroke-width:4;fill:none;opacity:0;transition:opacity .2s}
+.live.on{opacity:1}
+.box{fill:var(--idle);stroke:var(--line);stroke-width:1.5;transition:fill .25s,stroke .25s}
+.node.active .box{fill:var(--accent);stroke:var(--accent)}
+.chip{fill:var(--bg);stroke:var(--ink);stroke-width:2}
+.t{fill:var(--ink);font-size:13px;font-weight:600}
+.s{fill:var(--mute);font-size:11px}
+.node.active .t,.node.active .s{fill:var(--onacc)}
+.hint{fill:var(--mute);font-size:12px}
+.controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.bits{display:flex;gap:8px;align-items:center}
+button{font:inherit;padding:8px 14px;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
+button.bit{min-width:64px;font-weight:600}
+button.bit.one{background:var(--accent);border-color:var(--accent);color:#fff}
+button.go{background:var(--sig);border-color:var(--sig);color:#1b1300;font-weight:600}
+button:disabled{opacity:.5;cursor:not-allowed}
+.sel{font-weight:600;margin-left:auto}
+#log{margin:0;padding:0;list-style:none;font-size:.88rem;max-height:200px;overflow:auto}
+#log li{padding:5px 0;border-bottom:1px solid var(--line)}
+#log li:last-child{border-bottom:0}
+#log b{color:var(--accent)}
+.empty{color:var(--mute)}
+h2{font-size:1rem;margin:0 0 8px}
+@media (prefers-reduced-motion:reduce){.box,.live{transition:none}}
+</style>
+</head>
+<body>
+<main>
+<h1>Smart cart data transmission</h1>
+<p class="sub">Four cart sensors share one cable. A 4:1 multiplexer picks one sensor, the cable carries it, and a 1:4 demultiplexer delivers it to the matching store system. Both use the same select lines S1 S0.</p>
+
+<section class="panel" aria-label="Sensor data">
+<div class="inputs" id="inputs"></div>
+</section>
+
+<section class="panel diagram" aria-label="Circuit diagram">
+<svg id="svg" viewBox="0 0 960 420" role="img" aria-label="4:1 multiplexer, transmission line, 1:4 demultiplexer"></svg>
+</section>
+
+<section class="panel">
+<div class="controls">
+<div class="bits">
+<span>Select lines</span>
+<button class="bit" id="b1" aria-pressed="false">S1 = 0</button>
+<button class="bit" id="b0" aria-pressed="false">S0 = 0</button>
+</div>
+<button class="go" id="send">Send selected sensor</button>
+<button id="all">Send all four</button>
+<button id="clear">Clear log</button>
+<span class="sel" id="selTxt"></span>
+</div>
+</section>
+
+<section class="panel">
+<h2>Transmission log</h2>
+<ul id="log"><li class="empty">Nothing sent yet. Set S1 S0, then send.</li></ul>
+</section>
+</main>
+
+<script>
+const names=["Barcode","charachteristic","RFID tag","Help button"];
+const defaults=["Apple","0.2 kg","Cart #42","Off"];
+const sys=["Billing system","Security system","Inventory database","Customer service desk"];
+const py=[68,148,228,308];
+let s1=0,s0=0,busy=false;
+const $=id=>document.getElementById(id);
+const cut=(t,n)=>t.length>n?t.slice(0,n-1)+"\u2026":t;
+
+$("inputs").innerHTML=names.map((n,i)=>`<div><label for="d${i}">D${i} \u2013 ${n}</label><input type="text" id="d${i}" value="${defaults[i]}" maxlength="40"></div>`).join("");
+
+let g="";
+py.forEach((y,i)=>{
+ g+=`<path class="wire" d="M170 ${y} H300"/><path class="wire" d="M660 ${y} H790"/>`;
+ g+=`<g class="node"><rect class="box" id="in${i}" x="30" y="${y-28}" width="140" height="56" rx="8"/><text class="t" x="42" y="${y-4}">D${i} ${names[i]}</text><text class="s" id="iv${i}" x="42" y="${y+14}"></text></g>`;
+ g+=`<g class="node"><rect class="box" id="out${i}" x="790" y="${y-28}" width="150" height="56" rx="8"/><text class="t" x="802" y="${y-4}">Y${i} ${cut(sys[i],17)}</text><text class="s" id="ov${i}" x="802" y="${y+14}">idle</text></g>`;
+});
+g+=`<path class="wire" d="M400 200 H560"/>`;
+g+=`<polygon class="chip" points="300,30 400,90 400,310 300,370"/><text class="t" x="326" y="205">MUX</text><text class="s" x="326" y="222">4 : 1</text>`;
+g+=`<polygon class="chip" points="560,90 660,30 660,370 560,310"/><text class="t" x="590" y="205">DEMUX</text><text class="s" x="590" y="222">1 : 4</text>`;
+g+=`<text class="hint" x="480" y="190" text-anchor="middle">cable</text>`;
+g+=`<text class="hint" x="350" y="396" text-anchor="middle" id="m_s">S1 S0 = 00</text><text class="hint" x="610" y="396" text-anchor="middle" id="d_s">S1 S0 = 00</text>`;
+g+=`<path class="live" id="live" d=""/><circle id="pkt" r="9" fill="var(--sig)" stroke="var(--ink)" stroke-width="2" opacity="0" cx="0" cy="0"/>`;
+$("svg").innerHTML=g;
+
+const sel=()=>s1*2+s0;
+function refreshInputs(){
+ names.forEach((_,i)=>{
+  $("iv"+i).textContent=cut($("d"+i).value.trim()||"No data",20);
+  $("in"+i).parentNode.classList.toggle("active",i===sel());
+ });
+ $("b1").textContent="S1 = "+s1;$("b0").textContent="S0 = "+s0;
+ $("b1").classList.toggle("one",!!s1);$("b0").classList.toggle("one",!!s0);
+ $("b1").setAttribute("aria-pressed",!!s1);$("b0").setAttribute("aria-pressed",!!s0);
+ const bits=""+s1+s0;
+ $("m_s").textContent=$("d_s").textContent="S1 S0 = "+bits;
+ $("selTxt").textContent=`Selected: D${sel()} (${names[sel()]}) \u2192 Y${sel()}`.replace(" \u2192 "," to ");
+}
+function resetOutputs(){
+ names.forEach((_,i)=>{$("out"+i).parentNode.classList.remove("active");$("ov"+i).textContent="idle";
+  $("ov"+i).style.fill="";});
+}
+function log(msg){
+ const l=$("log");if(l.querySelector(".empty"))l.innerHTML="";
+ const li=document.createElement("li");li.innerHTML=msg;l.prepend(li);
+}
+const esc=s=>s.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+
+function travel(i){
+ return new Promise(res=>{
+  const y=py[i];
+  const d=`M170 ${y} H300 L400 200 H560 L660 ${y} H790`;
+  const live=$("live"),pkt=$("pkt");
+  live.setAttribute("d",d);live.classList.add("on");
+  const len=live.getTotalLength();
+  const dur=matchMedia("(prefers-reduced-motion:reduce)").matches?50:1500;
+  const t0=performance.now();
+  pkt.setAttribute("opacity","1");
+  (function step(now){
+   const k=Math.min((now-t0)/dur,1);
+   const p=live.getPointAtLength(len*k);
+   pkt.setAttribute("cx",p.x);pkt.setAttribute("cy",p.y);
+   if(k<1)requestAnimationFrame(step);
+   else{pkt.setAttribute("opacity","0");live.classList.remove("on");res();}
+  })(t0);
+ });
+}
+async function transmit(i){
+ const sensors=names.map((_,k)=>$("d"+k).value.trim()||"No data");
+ s1=i>>1;s0=i&1;refreshInputs();resetOutputs();
+ let r;
+ try{
+  const resp=await fetch("/api/transmit",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sel:i,sensors})});
+  if(!resp.ok)throw new Error("HTTP "+resp.status);
+  r=await resp.json();
+ }catch(e){log("Server error: "+esc(String(e.message))+". Is app.py running?");return;}
+ log(`MUX selects <b>D${r.sel}</b> (${esc(r.sensor)}) with S1S0 = ${r.s1}${r.s0}: "${esc(r.line)}"`);
+ await travel(i);
+ $("out"+i).parentNode.classList.add("active");
+ $("ov"+i).textContent=cut(r.line,20);
+ log(`DEMUX routes to <b>Y${r.sel}</b> ${esc(r.dest)}: "${esc(r.line)}"`);
+}
+function lock(v){busy=v;["send","all","b1","b0"].forEach(id=>$(id).disabled=v);}
+$("b1").onclick=()=>{s1^=1;resetOutputs();refreshInputs();};
+$("b0").onclick=()=>{s0^=1;resetOutputs();refreshInputs();};
+$("send").onclick=async()=>{lock(true);await transmit(sel());lock(false);};
+$("all").onclick=async()=>{lock(true);for(let i=0;i<4;i++){await transmit(i);await new Promise(r=>setTimeout(r,350));}lock(false);};
+$("clear").onclick=()=>{$("log").innerHTML='<li class="empty">Nothing sent yet. Set S1 S0, then send.</li>';resetOutputs();};
+names.forEach((_,i)=>$("d"+i).addEventListener("input",refreshInputs));
+refreshInputs();
+</script>
+</body>
+</html>
