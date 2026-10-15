@@ -1,14 +1,8 @@
 from flask import Flask, request, jsonify, send_from_directory
 
+
 app = Flask(__name__, static_folder=None)
 
-
-@app.after_request
-def add_cors_headers(response):
-    response.headers["Access-Control-Allow-Origin"] = "*"
-    response.headers["Access-Control-Allow-Headers"] = "Content-Type"
-    response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
-    return response
 
 
 class SmartCart:
