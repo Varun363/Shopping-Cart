@@ -83,106 +83,126 @@ h2{font-size:1rem;margin:0 0 8px}
 </main>
 
 <script>
-const names=["Barcode","charachteristic","RFID tag","Help button"];
-const defaults=["Apple","0.2 kg","Cart #42","Off"];
-const sys=["Billing system","Security system","Inventory database","Customer service desk"];
-const py=[68,148,228,308];
-let s1=0,s0=0,busy=false;
-const $=id=>document.getElementById(id);
-const cut=(t,n)=>t.length>n?t.slice(0,n-1)+"\u2026":t;
+const names = ["Barcode", "charachteristic", "RFID tag", "Help button"];
+const defaults = ["Apple", "0.2 kg", "Cart #42", "Off"];
+const sys = ["Billing system", "Security system", "Inventory database", "Customer service desk"];
+const py = [68, 148, 228, 308];
+let s1 = 0, s0 = 0, busy = false;
+const $ = id => document.getElementById(id);
+const cut = (t, n) => t.length > n ? t.slice(0, n - 1) + "\u2026" : t;
 
-$("inputs").innerHTML=names.map((n,i)=>`<div><label for="d${i}">D${i} \u2013 ${n}</label><input type="text" id="d${i}" value="${defaults[i]}" maxlength="40"></div>`).join("");
+// 👇 PUT YOUR ACTUAL RENDER APP URL HERE (e.g., https://onrender.com)
+const BACKEND_URL = "https://onrender.com";
 
-let g="";
-py.forEach((y,i)=>{
- g+=`<path class="wire" d="M170 ${y} H300"/><path class="wire" d="M660 ${y} H790"/>`;
- g+=`<g class="node"><rect class="box" id="in${i}" x="30" y="${y-28}" width="140" height="56" rx="8"/><text class="t" x="42" y="${y-4}">D${i} ${names[i]}</text><text class="s" id="iv${i}" x="42" y="${y+14}"></text></g>`;
- g+=`<g class="node"><rect class="box" id="out${i}" x="790" y="${y-28}" width="150" height="56" rx="8"/><text class="t" x="802" y="${y-4}">Y${i} ${cut(sys[i],17)}</text><text class="s" id="ov${i}" x="802" y="${y+14}">idle</text></g>`;
+$("inputs").innerHTML = names.map((n, i) => `<div><label for="d${i}">D${i} \u2013 ${n}</label><input type="text" id="d${i}" value="${defaults[i]}" maxlength="40"></div>`).join("");
+
+let g = "";
+py.forEach((y, i) => {
+ g += `<path class="wire" d="M170 ${y} H300"/><path class="wire" d="M660 ${y} H790"/>`;
+ g += `<g class="node"><rect class="box" id="in${i}" x="30" y="${y-28}" width="140" height="56" rx="8"/><text class="t" x="42" y="${y-4}">D${i} ${names[i]}</text><text class="s" id="iv${i}" x="42" y="${y+14}"></text></g>`;
+ g += `<g class="node"><rect class="box" id="out${i}" x="790" y="${y-28}" width="150" height="56" rx="8"/><text class="t" x="802" y="${y-4}">Y${i} ${cut(sys[i], 17)}</text><text class="s" id="ov${i}" x="802" y="${y+14}">idle</text></g>`;
 });
-g+=`<path class="wire" d="M400 200 H560"/>`;
-g+=`<polygon class="chip" points="300,30 400,90 400,310 300,370"/><text class="t" x="326" y="205">MUX</text><text class="s" x="326" y="222">4 : 1</text>`;
-g+=`<polygon class="chip" points="560,90 660,30 660,370 560,310"/><text class="t" x="590" y="205">DEMUX</text><text class="s" x="590" y="222">1 : 4</text>`;
-g+=`<text class="hint" x="480" y="190" text-anchor="middle">cable</text>`;
-g+=`<text class="hint" x="350" y="396" text-anchor="middle" id="m_s">S1 S0 = 00</text><text class="hint" x="610" y="396" text-anchor="middle" id="d_s">S1 S0 = 00</text>`;
-g+=`<path class="live" id="live" d=""/><circle id="pkt" r="9" fill="var(--sig)" stroke="var(--ink)" stroke-width="2" opacity="0" cx="0" cy="0"/>`;
-$("svg").innerHTML=g;
+g += `<path class="wire" d="M400 200 H560"/>`;
+g += `<polygon class="chip" points="300,30 400,90 400,310 300,370"/><text class="t" x="326" y="205">MUX</text><text class="s" x="326" y="222">4 : 1</text>`;
+g += `<polygon class="chip" points="560,90 660,30 660,370 560,310"/><text class="t" x="590" y="205">DEMUX</text><text class="s" x="590" y="222">1 : 4</text>`;
+g += `<text class="hint" x="480" y="190" text-anchor="middle">cable</text>`;
+g += `<text class="hint" x="350" y="396" text-anchor="middle" id="m_s">S1 S0 = 00</text><text class="hint" x="610" y="396" text-anchor="middle" id="d_s">S1 S0 = 00</text>`;
+g += `<path class="live" id="live" d=""/><circle id="pkt" r="9" fill="var(--sig)" stroke="var(--ink)" stroke-width="2" opacity="0" cx="0" cy="0"/>`;
+$("svg").innerHTML = g;
 
-const sel=()=>s1*2+s0;
-function refreshInputs(){
- names.forEach((_,i)=>{
-  $("iv"+i).textContent=cut($("d"+i).value.trim()||"No data",20);
-  $("in"+i).parentNode.classList.toggle("active",i===sel());
+const sel = () => s1 * 2 + s0;
+function refreshInputs() {
+ names.forEach((_, i) => {
+  $("iv" + i).textContent = cut($("d" + i).value.trim() || "No data", 20);
+  $("in" + i).parentNode.classList.toggle("active", i === sel());
  });
- $("b1").textContent="S1 = "+s1;$("b0").textContent="S0 = "+s0;
- $("b1").classList.toggle("one",!!s1);$("b0").classList.toggle("one",!!s0);
- $("b1").setAttribute("aria-pressed",!!s1);$("b0").setAttribute("aria-pressed",!!s0);
- const bits=""+s1+s0;
- $("m_s").textContent=$("d_s").textContent="S1 S0 = "+bits;
- $("selTxt").textContent=`Selected: D${sel()} (${names[sel()]}) \u2192 Y${sel()}`.replace(" \u2192 "," to ");
+ $("b1").textContent = "S1 = " + s1; $("b0").textContent = "S0 = " + s0;
+ $("b1").classList.toggle("one", !!s1); $("b0").classList.toggle("one", !!s0);
+ $("b1").setAttribute("aria-pressed", !!s1); $("b0").setAttribute("aria-pressed", !!s0);
+ const bits = "" + s1 + s0;
+ $("m_s").textContent = $("d_s").textContent = "S1 S0 = " + bits;
+ $("selTxt").textContent = `Selected: D${sel()} (${names[sel()]}) to Y${sel()}`;
 }
-function resetOutputs(){
- names.forEach((_,i)=>{$("out"+i).parentNode.classList.remove("active");$("ov"+i).textContent="idle";
-  $("ov"+i).style.fill="";});
+function resetOutputs() {
+ names.forEach((_, i) => {
+  $("out" + i).parentNode.classList.remove("active"); $("ov" + i).textContent = "idle";
+  $("ov" + i).style.fill = "";
+ });
 }
-function log(msg){
- const l=$("log");if(l.querySelector(".empty"))l.innerHTML="";
- const li=document.createElement("li");li.innerHTML=msg;l.prepend(li);
+function log(msg) {
+ const l = $("log"); if (l.querySelector(".empty")) l.innerHTML = "";
+ const li = document.createElement("li"); li.innerHTML = msg; l.prepend(li);
 }
-const esc=s=>s.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+const esc = s => s.replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
 
-function travel(i){
- return new Promise(res=>{
-  const y=py[i];
-  const d=`M170 ${y} H300 L400 200 H560 L660 ${y} H790`;
-  const BACKEND_URL = "https://onrender.com";
-  const live=$("live"),pkt=$("pkt");
-  live.setAttribute("d",d);live.classList.add("on");
-  const len=live.getTotalLength();
-  const dur=matchMedia("(prefers-reduced-motion:reduce)").matches?50:1500;
-  const t0=performance.now();
 
-  function testConnection() {
-    fetch(`${BACKEND_URL}/api/data`) // Pointing to the live Flask route
-        .then(response => response.json())
-        .then(data => {
-            console.log("Connected successfully!", data);
-            document.getElementById("output").innerText = data.message;
-        })
-        .catch(error => console.error("Error connecting to backend:", error));
+function testConnection() {
+  fetch(`${BACKEND_URL}/api/data`)
+      .then(response => {
+          if (!response.ok) throw new Error("HTTP error " + response.status);
+          return response.json();
+      })
+      .then(data => {
+          console.log("Connected successfully!", data);
+          log(`<b>System:</b> Connected to backend -> ${data.message}`);
+      })
+      .catch(error => {
+          console.error("Error connecting to backend:", error);
+          log(`<b>Error:</b> Backend communication failed.`);
+      });
 }
 
-  pkt.setAttribute("opacity","1");
-  (function step(now){
-   const k=Math.min((now-t0)/dur,1);
-   const p=live.getPointAtLength(len*k);
-   pkt.setAttribute("cx",p.x);pkt.setAttribute("cy",p.y);
-   if(k<1)requestAnimationFrame(step);
-   else{pkt.setAttribute("opacity","0");live.classList.remove("on");res();}
+function travel(i) {
+ return new Promise(res => {
+  const y = py[i];
+  const d = `M170 ${y} H300 L400 200 H560 L660 ${y} H790`;
+  const live = $("live"), pkt = $("pkt");
+  live.setAttribute("d", d); live.classList.add("on");
+  const len = live.getTotalLength();
+  const dur = matchMedia("(prefers-reduced-motion:reduce)").matches ? 50 : 1500;
+  const t0 = performance.now();
+
+  pkt.setAttribute("opacity", "1");
+  (function step(now) {
+   const k = Math.min((now - t0) / dur, 1);
+   const p = live.getPointAtLength(k * len);
+   pkt.setAttribute("cx", p.x); pkt.setAttribute("cy", p.y);
+   if (k < 1) requestAnimationFrame(step);
+   else {
+    live.classList.remove("on"); pkt.setAttribute("opacity", "0");
+    $("out" + i).parentNode.classList.add("active");
+    res();
+   }
   })(t0);
  });
 }
-async function transmit(i){
- const sensors=names.map((_,k)=>$("d"+k).value.trim()||"No data");
- s1=i>>1;s0=i&1;refreshInputs();resetOutputs();
- let r;
- try{
-  const resp=await fetch("/api/transmit",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sel:i,sensors})});
-  if(!resp.ok)throw new Error("HTTP "+resp.status);
-  r=await resp.json();
- }catch(e){log("Server error: "+esc(String(e.message))+". Is app.py running?");return;}
- log(`MUX selects <b>D${r.sel}</b> (${esc(r.sensor)}) with S1S0 = ${r.s1}${r.s0}: "${esc(r.line)}"`);
+
+async function sendOne(i) {
+ if (busy) return; busy = true;
+ resetOutputs();
+ const val = $("d" + i).value.trim() || "No data";
+ log(`Sending D${i} data: "<b>${esc(val)}</b>"...`);
  await travel(i);
- $("out"+i).parentNode.classList.add("active");
- $("ov"+i).textContent=cut(r.line,20);
- log(`DEMUX routes to <b>Y${r.sel}</b> ${esc(r.dest)}: "${esc(r.line)}"`);
+ $("ov" + i).textContent = cut(val, 20);
+ log(`Data safely arrived at Y${i} (${sys[i]}).`);
+ testConnection(); // Trigger the backend test when data finishes transmission
+ busy = false;
 }
-function lock(v){busy=v;["send","all","b1","b0"].forEach(id=>$(id).disabled=v);}
-$("b1").onclick=()=>{s1^=1;resetOutputs();refreshInputs();};
-$("b0").onclick=()=>{s0^=1;resetOutputs();refreshInputs();};
-$("send").onclick=async()=>{lock(true);await transmit(sel());lock(false);};
-$("all").onclick=async()=>{lock(true);for(let i=0;i<4;i++){await transmit(i);await new Promise(r=>setTimeout(r,350));}lock(false);};
-$("clear").onclick=()=>{$("log").innerHTML='<li class="empty">Nothing sent yet. Set S1 S0, then send.</li>';resetOutputs();};
-names.forEach((_,i)=>$("d"+i).addEventListener("input",refreshInputs));
+
+$("send").onclick = () => sendOne(sel());
+$("all").onclick = async () => {
+ if (busy) return;
+ for (let i = 0; i < 4; i++) {
+  s1 = Math.floor(i / 2); s0 = i % 2; refreshInputs();
+  await sendOne(i);
+  await new Promise(r => setTimeout(r, 500));
+ }
+};
+$("clear").onclick = () => {
+ $("log").innerHTML = '<li class="empty">Nothing sent yet. Set S1 S0, then send.</li>';
+};
+$("b1").onclick = () => { s1 = s1 ? 0 : 1; refreshInputs(); };
+$("b0").onclick = () => { s0 = s0 ? 0 : 1; refreshInputs(); };
 refreshInputs();
 </script>
 </body>
