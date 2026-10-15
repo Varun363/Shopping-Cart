@@ -2,15 +2,14 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 
 app = Flask(__name__)
-CORS(app)  # lets the page hosted on Vercel call this API
+CORS(app)  
 
 
 class SmartCart:
-    """Cart side: 4:1 MULTIPLEXER."""
     sensor_names = ["Barcode", "charachteristic", "RFID tag", "Help button"]
 
     def __init__(self, sensors):
-        self.sensors = sensors  # D0..D3
+        self.sensors = sensors  
 
     def multiplex(self, s1, s0):
         sel = (s1 << 1) | s0
@@ -18,7 +17,6 @@ class SmartCart:
 
 
 class SupermarketServer:
-    """Server side: 1:4 DEMULTIPLEXER."""
     system_names = ["Billing System", "Security System",
                     "Inventory Database", "Customer Service Desk"]
 
@@ -34,7 +32,7 @@ def index():
     return "Smart Cart backend is running"
 
 
-@app.get("/api/data")          # the page calls this to test the connection
+@app.get("/api/data")      
 def data():
     return jsonify(message="Hello from Flask backend!")
 
@@ -55,13 +53,13 @@ def transmit():
     cart = SmartCart(sensors)
     server = SupermarketServer()
 
-    mux_sel, line = cart.multiplex(s1, s0)                     # MUX
-    dmx_sel, dest, outputs = server.demultiplex(line, s1, s0)  # DEMUX
+    mux_sel, line = cart.multiplex(s1, s0)                     
+    dmx_sel, dest, outputs = server.demultiplex(line, s1, s0)  
 
     return jsonify(sel=mux_sel, s1=s1, s0=s0, line=line,
                    sensor=SmartCart.sensor_names[mux_sel],
                    dest=dest, outputs=outputs)
 
 
-if __name__ == "__main__":   # only used on your own computer, Render ignores this
+if __name__ == "__main__":  
     app.run(host="127.0.0.1", port=5000, debug=True)
